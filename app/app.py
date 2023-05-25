@@ -2,12 +2,14 @@ from flask import Flask, jsonify, render_template_string, request
 from sentence_transformers import SentenceTransformer
 import psycopg2
 import json
+import requests
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
 from loguru import logger
 
-client = QdrantClient(":memory:")
-# client = QdrantClient("qdrant", port=6333)
+# client = QdrantClient(":memory:")
+client = QdrantClient("qdrant", port=6333)
+# client = QdrantClient(path="qdrant.db")
 app = Flask(__name__)
 
 def get_db_connection():
@@ -32,6 +34,7 @@ def home():
         <li><a href="/extensions">Turn on extensions</a></li>
         <li><hr></li>
         <li><a href="/initQdrant">Initialize Qdrant</a></li>
+        <li><a href="/upsert">Upsert embeddings</a></li>
     </ul>
     """
     return render_template_string(html)
@@ -145,13 +148,66 @@ def search():
 
 @app.route('/initQdrant', methods=['GET'])
 def initQdrant():
-    client.recreate_collection(
-        collection_name="test_collection",
-        vectors_config=VectorParams(size=768, distance=Distance.COSINE),
-    )
-    collection_info = client.get_collection(collection_name="test_collection")
-    logger.info(str(collection_info))
-    return jsonify(str(collection_info)), 200
+    url = "http://qdrant:6333/collections/ttt_collection"
+    headers = {"Content-Type": "application/json"}
+    data = { "vector_size": 768, "distance": "Cosine" }
+
+    response = requests.put(url, headers=headers, data=json.dumps(data))
+    logger.info(response.text)
+
+    # client.recreate_collection(
+    #     collection_name="ttt_collection",
+    #     vectors_config=VectorParams(size=768, distance=Distance.COSINE),
+    # )
+    # collection_info = client.get_collection(collection_name="ttt_collection")
+    # logger.info(str(collection_info))
+    return jsonify(str(response)), 200
+
+
+@app.route('/upsert', methods=['GET'])
+def upsert():
+    model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+    url = "http://qdrant:6333/collections/ttt_collection/points"
+    headers = {"Content-Type": "application/json"}
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+            SELECT id, combined_name
+            FROM names;
+        """)
+    result = cur.fetchall()
+
+    for name in result:
+        embeddings = model.encode([ name[1] ])
+        logger.info(name[1])
+        # logger.info(type(embeddings[0]))
+        # operation_info = client.upsert(
+        #     collection_name="ttt_collection",
+        #     wait=True,
+        #     points=[
+        #         PointStruct(id=name[0], vector=embeddings[0].tolist(), payload=[ "name": name[1] ]),
+        #     ]
+        # )
+
+
+        data = {
+            "batch": {
+                "ids": [ name[0] ],
+                "payloads": [
+                    {"name": name[1]}
+                ],
+                "vectors": [
+                    embeddings[0].tolist()
+                ]
+            }
+        }
+
+        response = requests.put(url, headers=headers, data=json.dumps(data))
+
+        # logger.info(operation_info)
+
+    return jsonify(str(result)), 200
 
 
 @app.route('/search/', methods=['POST'])
@@ -243,7 +299,23 @@ def qdrant_search(search_term):
 
     model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
     embeddings = model.encode(sentences)
-    return embeddings.tolist()[0]
+
+    url = "http://qdrant:6333/collections/ttt_collection/points/search"
+    headers = {"Content-Type": "application/json"}
+    data = {
+        "params": {
+            "hnsw_ef": 128,
+            "exact": False
+        },
+        "vector": embeddings[0].tolist(),
+        "limit": 15,
+        "with_payload": True
+    }
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    logger.info(response)
+
+    return response.json()
 
 
 if __name__ == '__main__':
