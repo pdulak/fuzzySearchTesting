@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, render_template_string, request
+from sentence_transformers import SentenceTransformer
 import psycopg2
 import json
 
@@ -126,6 +127,7 @@ def search():
                 <option value="SIMILARITY">SIMILARITY</option>
                 <option value="SOUNDEX">SOUNDEX</option>
                 <option value="LEVENSHTEIN">LEVENSHTEIN</option>
+                <option value="QDRANT">QDRANT</option>
             </select><br>
             <input type="submit" value="Submit">
         </form>
@@ -139,7 +141,7 @@ def search_post():
         return jsonify({"message": "Search term is required"}), 400
     if not request.form['search_method']:
         return jsonify({"message": "Search method is required"}), 400
-    if request.form['search_method'] not in ['SIMILARITY', 'SOUNDEX', 'LEVENSHTEIN']:
+    if request.form['search_method'] not in ['SIMILARITY', 'SOUNDEX', 'LEVENSHTEIN', 'QDRANT']:
         return jsonify({"message": "Invalid search method"}), 400
 
     if request.form['search_method'] == 'SIMILARITY':
@@ -148,6 +150,8 @@ def search_post():
         result = soundex_search(request.form['search_term'])
     elif request.form['search_method'] == 'LEVENSHTEIN':
         result = levenshtein_search(request.form['search_term'])
+    elif request.form['search_method'] == 'QDRANT':
+        result = qdrant_search(request.form['search_term'])
 
     return jsonify(result), 200
 
@@ -213,6 +217,14 @@ def levenshtein_search(search_term):
     conn.close()
 
     return result
+
+
+def qdrant_search(search_term):
+    sentences = [search_term]
+
+    model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+    embeddings = model.encode(sentences)
+    return embeddings.tolist()
 
 
 if __name__ == '__main__':

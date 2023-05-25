@@ -10,6 +10,11 @@ services:
     ports:
       - "5432:5432"
 
+  qdrant:
+    image: generall/qdrant
+    ports:
+      - "6333:6333"
+
   web:
     build: ./app
     command: flask run --host=0.0.0.0 --reload --debugger
@@ -19,6 +24,7 @@ services:
       - "5000:5000"
     depends_on:
       - db
+      - qdrant
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=development
