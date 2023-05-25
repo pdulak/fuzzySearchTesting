@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Display Data</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+</head>
+<body>
+    <main class="container">
+    <form action="/search/" method="POST">
+        Search term: <input type="text" name="search_term"><br>
+        Search method:
+        <select name="search_method">
+            <option value="ALL">ALL</option>
+            <option value="SIMILARITY">SIMILARITY</option>
+            <option value="SOUNDEX">SOUNDEX</option>
+            <option value="LEVENSHTEIN">LEVENSHTEIN</option>
+            <option value="QDRANT">QDRANT</option>
+        </select><br>
+        <input type="submit" value="Submit">
+    </form>
+    </main>
+</body>
+</html>

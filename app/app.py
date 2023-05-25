@@ -1,15 +1,11 @@
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, render_template_string, request, render_template
 from sentence_transformers import SentenceTransformer
 import psycopg2
 import json
 import requests
-from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams, PointStruct
 from loguru import logger
+from json2html import *
 
-# client = QdrantClient(":memory:")
-client = QdrantClient("qdrant", port=6333)
-# client = QdrantClient(path="qdrant.db")
 app = Flask(__name__)
 
 def get_db_connection():
@@ -23,21 +19,7 @@ def get_db_connection():
 
 @app.route('/')
 def home():
-    html = """
-    <p>Use the following links to interact with the database:</p>
-    <ul>
-        <li><a href="/test">Test DB connection</a></li>
-        <li><a href="/search">Test search</a></li>
-        <li><hr></li>
-        <li><a href="/create">Create the 'names' table</a></li>
-        <li><a href="/initialize">Initialize the 'names' table</a></li>
-        <li><a href="/extensions">Turn on extensions</a></li>
-        <li><hr></li>
-        <li><a href="/initQdrant">Initialize Qdrant</a></li>
-        <li><a href="/upsert">Upsert embeddings</a></li>
-    </ul>
-    """
-    return render_template_string(html)
+    return render_template("index.html")
 
 
 @app.route('/test')
@@ -130,20 +112,7 @@ def extensions():
 
 @app.route('/search/', methods=['GET'])
 def search():
-    html = """
-        <form action="/search/" method="POST">
-            Search term: <input type="text" name="search_term"><br>
-            Search method: 
-            <select name="search_method">
-                <option value="SIMILARITY">SIMILARITY</option>
-                <option value="SOUNDEX">SOUNDEX</option>
-                <option value="LEVENSHTEIN">LEVENSHTEIN</option>
-                <option value="QDRANT">QDRANT</option>
-            </select><br>
-            <input type="submit" value="Submit">
-        </form>
-        """
-    return render_template_string(html)
+    return render_template("search.html")
 
 
 @app.route('/initQdrant', methods=['GET'])
@@ -155,12 +124,6 @@ def initQdrant():
     response = requests.put(url, headers=headers, data=json.dumps(data))
     logger.info(response.text)
 
-    # client.recreate_collection(
-    #     collection_name="ttt_collection",
-    #     vectors_config=VectorParams(size=768, distance=Distance.COSINE),
-    # )
-    # collection_info = client.get_collection(collection_name="ttt_collection")
-    # logger.info(str(collection_info))
     return jsonify(str(response)), 200
 
 
@@ -181,15 +144,6 @@ def upsert():
     for name in result:
         embeddings = model.encode([ name[1] ])
         logger.info(name[1])
-        # logger.info(type(embeddings[0]))
-        # operation_info = client.upsert(
-        #     collection_name="ttt_collection",
-        #     wait=True,
-        #     points=[
-        #         PointStruct(id=name[0], vector=embeddings[0].tolist(), payload=[ "name": name[1] ]),
-        #     ]
-        # )
-
 
         data = {
             "batch": {
@@ -205,8 +159,6 @@ def upsert():
 
         response = requests.put(url, headers=headers, data=json.dumps(data))
 
-        # logger.info(operation_info)
-
     return jsonify(str(result)), 200
 
 
@@ -216,7 +168,7 @@ def search_post():
         return jsonify({"message": "Search term is required"}), 400
     if not request.form['search_method']:
         return jsonify({"message": "Search method is required"}), 400
-    if request.form['search_method'] not in ['SIMILARITY', 'SOUNDEX', 'LEVENSHTEIN', 'QDRANT']:
+    if request.form['search_method'] not in ['SIMILARITY', 'SOUNDEX', 'LEVENSHTEIN', 'QDRANT', 'ALL']:
         return jsonify({"message": "Invalid search method"}), 400
 
     if request.form['search_method'] == 'SIMILARITY':
@@ -227,8 +179,19 @@ def search_post():
         result = levenshtein_search(request.form['search_term'])
     elif request.form['search_method'] == 'QDRANT':
         result = qdrant_search(request.form['search_term'])
+    elif request.form['search_method'] == 'ALL':
+        result_similarity = similarity_search(request.form['search_term'])
+        result_soundex = soundex_search(request.form['search_term'])
+        result_lev = levenshtein_search(request.form['search_term'])
+        result_qdrant = qdrant_search(request.form['search_term'])
+        html_similarity = json2html.convert(json=result_similarity)
+        html_soundex = json2html.convert(json=result_soundex)
+        html_lev = json2html.convert(json=result_lev)
+        html_qdrant = json2html.convert(json=result_qdrant)
+        return render_template('data-template-all.html', data_similarity=html_similarity, data_soundex=html_soundex, data_lev=html_lev, data_qdrant=html_qdrant)
 
-    return jsonify(result), 200
+    html_data = json2html.convert(json=result)
+    return render_template('data-template.html', data=html_data)
 
 
 def similarity_search(search_term):

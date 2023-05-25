@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Display Data</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <style type="text/css">
+        :not(thead,tfoot)>*>td {
+            --font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+<main class="container">
+    <div class="grid">
+        <div>
+            <h2>Similarity:</h2>
+            {{ data_similarity | safe }}
+        </div>
+        <div>
+            <h2>Soundex:</h2>
+            {{ data_soundex | safe }}
+        </div>
+        <div>
+            <h2>Levenstein:</h2>
+            {{ data_lev | safe }}
+        </div>
+    </div>
+
+    <h2>Qdrant:</h2>
+    {{ data_qdrant | safe }}
+</main>
+</body>
+</html>
