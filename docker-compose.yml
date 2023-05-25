@@ -1,0 +1,27 @@
+version: '3.7'
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+
+  web:
+    build: ./app
+    command: flask run --host=0.0.0.0 --reload
+    volumes:
+      - ./app:/usr/src/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+
+volumes:
+  postgres_data:
