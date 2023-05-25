@@ -12,7 +12,7 @@ services:
 
   web:
     build: ./app
-    command: flask run --host=0.0.0.0 --reload
+    command: flask run --host=0.0.0.0 --reload --debugger
     volumes:
       - ./app:/usr/src/app
     ports:
