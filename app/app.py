@@ -2,7 +2,12 @@ from flask import Flask, jsonify, render_template_string, request
 from sentence_transformers import SentenceTransformer
 import psycopg2
 import json
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams, PointStruct
+from loguru import logger
 
+client = QdrantClient(":memory:")
+# client = QdrantClient("qdrant", port=6333)
 app = Flask(__name__)
 
 def get_db_connection():
@@ -20,10 +25,13 @@ def home():
     <p>Use the following links to interact with the database:</p>
     <ul>
         <li><a href="/test">Test DB connection</a></li>
+        <li><a href="/search">Test search</a></li>
+        <li><hr></li>
         <li><a href="/create">Create the 'names' table</a></li>
         <li><a href="/initialize">Initialize the 'names' table</a></li>
         <li><a href="/extensions">Turn on extensions</a></li>
-        <li><a href="/search">Test search</a></li>
+        <li><hr></li>
+        <li><a href="/initQdrant">Initialize Qdrant</a></li>
     </ul>
     """
     return render_template_string(html)
@@ -135,6 +143,17 @@ def search():
     return render_template_string(html)
 
 
+@app.route('/initQdrant', methods=['GET'])
+def initQdrant():
+    client.recreate_collection(
+        collection_name="test_collection",
+        vectors_config=VectorParams(size=768, distance=Distance.COSINE),
+    )
+    collection_info = client.get_collection(collection_name="test_collection")
+    logger.info(str(collection_info))
+    return jsonify(str(collection_info)), 200
+
+
 @app.route('/search/', methods=['POST'])
 def search_post():
     if not request.form['search_term']:
@@ -224,7 +243,7 @@ def qdrant_search(search_term):
 
     model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
     embeddings = model.encode(sentences)
-    return embeddings.tolist()
+    return embeddings.tolist()[0]
 
 
 if __name__ == '__main__':
