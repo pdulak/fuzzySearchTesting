@@ -6,18 +6,22 @@
 </head>
 <body>
     <main class="container">
-        <p>Use the following links to interact with the database:</p>
-        <ul>
-            <li><a href="/test">Test DB connection</a></li>
-            <li><a href="/search">Test search</a></li>
-            <li><hr></li>
-            <li><a href="/create">Create the 'names' table</a></li>
-            <li><a href="/initialize">Initialize the 'names' table</a></li>
-            <li><a href="/extensions">Turn on extensions</a></li>
-            <li><hr></li>
-            <li><a href="/initQdrant">Initialize Qdrant</a></li>
-            <li><a href="/upsert">Upsert embeddings</a></li>
-        </ul>
+        <section>
+            <p>First, set up your environment:</p>
+            <a href="/test" role="button">1. Test DB connection</a>
+            <a href="/create" role="button">2. Create the 'names' table</a>
+            <a href="/initialize" role="button">3. Initialize the 'names' table</a>
+            <a href="/extensions" role="button">4. Turn on extensions</a>
+        </section>
+        <section>
+            <p>Remember to also initialize Qdrant database. Please note that Upsert may take a long time, because model files will be downloaded first</p>
+            <a href="/initQdrant" role="button">5. Initialize Qdrant</a>
+            <a href="/upsert" role="button">6. Upsert embeddings - may take a long time</a>
+        </section>
+        <section>
+            <p>Use the following links to interact with the database:</p>
+            <a href="/search" role="button" >Test search</a>
+        </section>
     </main>
 </body>
 </html>

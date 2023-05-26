@@ -7,6 +7,9 @@ from loguru import logger
 from json2html import *
 
 app = Flask(__name__)
+qdrant_url = "http://qdrant:6333/"
+qdrant_collection = "ttt_collection"
+
 
 def get_db_connection():
     conn = psycopg2.connect(
@@ -30,7 +33,10 @@ def test():
     result = cur.fetchone()
     cur.close()
     conn.close()
-    return jsonify(result)
+    if result[0] == 1:
+        return jsonify({"message": "Connection successful"}), 200
+    else:
+        return jsonify({"message": "Connection failed"}), 500
 
 
 @app.route('/initialize', methods=['GET'])
@@ -98,7 +104,7 @@ def extensions():
     cur = conn.cursor()
 
     # Turn on extensions
-    cur.execute("CREATE EXTENSION pg_trgm;;")
+    cur.execute("CREATE EXTENSION pg_trgm;")
     conn.commit()
 
     cur.execute("CREATE EXTENSION fuzzystrmatch;")
@@ -116,10 +122,10 @@ def search():
 
 
 @app.route('/initQdrant', methods=['GET'])
-def initQdrant():
-    url = "http://qdrant:6333/collections/ttt_collection"
+def init_qdrant():
+    url = f"{qdrant_url}collections/{qdrant_collection}"
     headers = {"Content-Type": "application/json"}
-    data = { "vector_size": 768, "distance": "Cosine" }
+    data = {"vector_size": 768, "distance": "Cosine"}
 
     response = requests.put(url, headers=headers, data=json.dumps(data))
     logger.info(response.text)
@@ -130,7 +136,7 @@ def initQdrant():
 @app.route('/upsert', methods=['GET'])
 def upsert():
     model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
-    url = "http://qdrant:6333/collections/ttt_collection/points"
+    url = f"{qdrant_url}collections/{qdrant_collection}/points"
     headers = {"Content-Type": "application/json"}
     conn = get_db_connection()
     cur = conn.cursor()
@@ -142,12 +148,12 @@ def upsert():
     result = cur.fetchall()
 
     for name in result:
-        embeddings = model.encode([ name[1] ])
+        embeddings = model.encode([name[1]])
         logger.info(name[1])
 
         data = {
             "batch": {
-                "ids": [ name[0] ],
+                "ids": [name[0]],
                 "payloads": [
                     {"name": name[1]}
                 ],
@@ -157,7 +163,7 @@ def upsert():
             }
         }
 
-        response = requests.put(url, headers=headers, data=json.dumps(data))
+        requests.put(url, headers=headers, data=json.dumps(data))
 
     return jsonify(str(result)), 200
 
@@ -188,7 +194,8 @@ def search_post():
         html_soundex = json2html.convert(json=result_soundex)
         html_lev = json2html.convert(json=result_lev)
         html_qdrant = json2html.convert(json=result_qdrant)
-        return render_template('data-template-all.html', data_similarity=html_similarity, data_soundex=html_soundex, data_lev=html_lev, data_qdrant=html_qdrant)
+        return render_template('data-template-all.html', data_similarity=html_similarity, data_soundex=html_soundex,
+                               data_lev=html_lev, data_qdrant=html_qdrant)
 
     html_data = json2html.convert(json=result)
     return render_template('data-template.html', data=html_data)
@@ -262,8 +269,7 @@ def qdrant_search(search_term):
 
     model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
     embeddings = model.encode(sentences)
-
-    url = "http://qdrant:6333/collections/ttt_collection/points/search"
+    url = f"{qdrant_url}collections/{qdrant_collection}/points/search"
     headers = {"Content-Type": "application/json"}
     data = {
         "params": {
@@ -276,9 +282,10 @@ def qdrant_search(search_term):
     }
 
     response = requests.post(url, headers=headers, data=json.dumps(data))
-    logger.info(response)
+    results = response.json()["result"]
+    iterator = map(lambda x: {"name": x["payload"]["name"], "score": x["score"]}, results)
 
-    return response.json()
+    return list(iterator)
 
 
 if __name__ == '__main__':
