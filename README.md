@@ -19,6 +19,9 @@ are also names from a particular language group presented.
 
 ## How to run
 
+1. Remove `.gitkeep` files from `postgres-data`
+2. Run the following command:
+
 ```bash
 docker-compose up
 ```
@@ -28,7 +31,11 @@ as there is a few gigabytes of data to download. Also, the first
 upsert to Qdrant will take a while, as the model has to be
 downloaded and the index needs to be built.
 
----
+3. Open `http://localhost:5000/` in your browser
+4. Set up your environment by clicking buttons in the first row
+5. Set up qdrant by clicking buttons in the second row - upsert embeddings
+may take a long time because first the model data has to be downloaded
+6. Test search using "Test search" page
 
 ## Developer notes
 

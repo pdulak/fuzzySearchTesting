@@ -2,6 +2,7 @@ version: '3.7'
 
 services:
   db:
+    container_name: db
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,6 +12,7 @@ services:
       - "5432:5432"
 
   qdrant:
+    container_name: qdrant
     image: generall/qdrant
     ports:
       - "6333:6333"
